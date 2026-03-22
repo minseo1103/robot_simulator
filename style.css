@@ -1,0 +1,312 @@
+:root {
+    --bg-color: #0f111a;
+    --panel-bg: rgba(20, 22, 35, 0.7);
+    --panel-border: rgba(255, 255, 255, 0.1);
+    --text-main: #f0f0f5;
+    --text-muted: #8b8d9b;
+    --primary: #6366f1;
+    --primary-hover: #4f46e5;
+    --secondary: rgba(255,255,255,0.05);
+    --secondary-hover: rgba(255,255,255,0.1);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body, html {
+    width: 100%;
+    height: 100%;
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-color);
+    overflow: hidden;
+    color: var(--text-main);
+}
+
+#3d-canvas-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+}
+
+#ui-panel {
+    position: absolute;
+    top: 2rem;
+    left: 2rem;
+    width: 360px;
+    max-height: calc(100vh - 4rem);
+    background: var(--panel-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--panel-border);
+    border-radius: 20px;
+    padding: 1.5rem;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
+}
+
+#ui-panel::-webkit-scrollbar {
+    width: 6px;
+}
+#ui-panel::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.2);
+    border-radius: 3px;
+}
+
+header {
+    margin-bottom: 1.5rem;
+}
+
+header h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    background: linear-gradient(90deg, #fff, #a5a5b0);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+header p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.action-group {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+input[type="file"] {
+    display: none;
+}
+
+.upload-btn, .secondary-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    color: #fff;
+}
+
+.upload-btn {
+    background-color: var(--primary);
+}
+
+.upload-btn:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+.secondary-btn {
+    background-color: var(--secondary);
+    border: 1px solid var(--panel-border);
+}
+
+.secondary-btn:hover {
+    background-color: var(--secondary-hover);
+}
+
+#upload-status {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+    text-align: center;
+    padding: 0.5rem;
+    background: rgba(0,0,0,0.2);
+    border-radius: 8px;
+}
+
+.joints-header {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--panel-border);
+    padding-bottom: 0.5rem;
+}
+
+.slider-wrapper {
+    margin-bottom: 1.25rem;
+}
+
+.slider-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+}
+
+.slider-labels span:first-child {
+    color: var(--text-main);
+    font-weight: 500;
+}
+
+.val-input {
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid transparent;
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    width: 60px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.val-input:focus {
+    outline: none;
+    border-color: rgba(99, 102, 241, 0.5);
+    background: rgba(99, 102, 241, 0.2);
+}
+
+.val-input::-webkit-outer-spin-button,
+.val-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+}
+
+input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    background: transparent;
+}
+
+input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    margin-top: -6px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    border: 2px solid var(--primary);
+}
+
+input[type=range]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 4px;
+    cursor: pointer;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+}
+
+input[type=range]:focus {
+    outline: none;
+}
+
+.category-details {
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.category-details[open] {
+    padding-bottom: 0.5rem;
+}
+
+.joint-category-header {
+    font-size: 0.8rem;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.75rem 0;
+    cursor: pointer;
+    list-style: none; /* Hide default arrow */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: none;
+    margin: 0;
+    user-select: none;
+    transition: color 0.1s ease;
+}
+
+.joint-category-header:hover {
+    color: var(--primary-hover);
+}
+
+.joint-category-header::-webkit-details-marker {
+    display: none;
+}
+
+.joint-category-header::after {
+    content: '+';
+    font-size: 1.2rem;
+    line-height: 1;
+    color: var(--text-muted);
+}
+
+.category-details[open] > .joint-category-header::after {
+    content: '−';
+}
+
+.category-content {
+    padding-top: 0.5rem;
+}
+
+/* --- DROP ZONE --- */
+#drop-zone {
+    border: 2px dashed rgba(99, 102, 241, 0.35);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: rgba(99, 102, 241, 0.04);
+}
+
+#drop-zone:hover, #drop-zone.drag-over {
+    border-color: rgba(99, 102, 241, 0.7);
+    background: rgba(99, 102, 241, 0.1);
+    color: #c7d2fe;
+}
+
+/* --- PRESET LIBRARY --- */
+.preset-btn {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text-main);
+    border-radius: 8px;
+    padding: 0.5rem 0.4rem;
+    font-size: 0.78rem;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 500;
+    transition: all 0.15s ease;
+    text-align: center;
+}
+
+.preset-btn:hover {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgba(99, 102, 241, 0.5);
+    color: #c7d2fe;
+    transform: translateY(-1px);
+}

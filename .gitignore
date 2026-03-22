@@ -1,0 +1,12 @@
+# Large URDF repository - too big for GitHub
+unitree_ros_repo/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor files
+.vscode/
+*.swp
+*.swo

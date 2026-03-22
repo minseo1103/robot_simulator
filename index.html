@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Kinematics Tester</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- MediaPipe for webcam pose detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/vision_bundle.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div id="ui-panel">
+        <header>
+            <h1>Robot Kinematics</h1>
+            <p>Unitree G1 29-DOF Simulation Environment.</p>
+        </header>
+
+        <!-- Load / Upload Buttons -->
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+            <button id="load-g1-btn" class="secondary-btn" style="flex: 1; padding: 0.5rem; font-size: 0.8rem; background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.5); color: #fff;">
+                🤖 Load G1
+            </button>
+            <button id="upload-urdf-btn" class="secondary-btn" style="flex: 1; padding: 0.5rem; font-size: 0.8rem; background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.3); color: #c7d2fe;">
+                📦 Upload ZIP
+            </button>
+        </div>
+
+        <!-- Drop Zone for URDF ZIP -->
+        <div id="drop-zone">
+            <span>Drop .zip with URDF + meshes here</span>
+        </div>
+
+        <div id="upload-status">Initializing...</div>
+
+        <!-- Webcam Pose Panel -->
+        <div id="webcam-section" style="display: none; margin-bottom: 1rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; overflow: hidden;">
+            <div class="joints-header" style="border:none; margin: 0; padding: 0.6rem 0.75rem 0.5rem; background: rgba(16,185,129,0.08);">📷 Webcam Pose</div>
+            <div style="padding: 0.5rem 0.75rem 0.75rem;">
+                <div id="webcam-wrapper" style="position:relative; border-radius:6px; overflow:hidden; background:#000; aspect-ratio:4/3; display:none;">
+                    <video id="webcam-video" autoplay playsinline muted style="width:100%; display:block;"></video>
+                    <canvas id="webcam-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;"></canvas>
+                </div>
+                <div id="webcam-status" style="font-size:0.75rem; color: #6ee7b7; margin-bottom: 0.5rem; text-align: center;">Ready to start</div>
+                <div style="display:flex; gap:0.5rem;">
+                    <button id="webcam-toggle-btn" class="secondary-btn" style="flex:1; padding:0.5rem; font-size:0.8rem; background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.4); color:#34d399;">▶ Start Webcam</button>
+                    <button id="webcam-capture-btn" class="secondary-btn" style="flex:1; padding:0.5rem; font-size:0.8rem; background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.4); color:#818cf8;" disabled>📸 Capture Pose</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preset Pose Library -->
+        <div id="preset-section" style="display: none; margin-bottom: 1rem;">
+            <div class="joints-header" style="margin-bottom: 0.5rem;">Pose Library</div>
+            <div id="preset-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem;">
+                <button class="preset-btn" data-preset="tpose">🤸 T-Pose</button>
+                <button class="preset-btn" data-preset="wave">👋 Wave</button>
+                <button class="preset-btn" data-preset="walkready">🏃 Walk Ready</button>
+                <button class="preset-btn" data-preset="sit">🪑 Sit</button>
+                <button class="preset-btn" data-preset="handshake">🤝 Handshake</button>
+                <button class="preset-btn" data-preset="squat">🏋 Squat</button>
+            </div>
+        </div>
+
+        <!-- IK Section -->
+        <div id="ik-container" style="display: none; padding: 0.5rem; background: rgba(255, 255, 255, 0.05); border-radius: 4px; margin-bottom: 1rem;">
+            <div class="joints-header" style="border:none; margin-bottom:0.5rem; padding-bottom: 0;">Inverse Kinematics</div>
+            <select id="ik-end-effector" style="width: 100%; padding: 0.5rem; background: #1f2130; color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; margin-bottom: 0.5rem;">
+                <option value="">Select End Effector...</option>
+            </select>
+            <button id="ik-toggle-btn" class="secondary-btn" style="width: 100%; padding: 0.5rem; font-size: 0.8rem; background: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.4); color: #818cf8;">Enable IK Target</button>
+        </div>
+
+        <div class="joints-header">Joint Controls</div>
+        <div id="joints-container">
+            <!-- Joint sliders will be injected here -->
+        </div>
+
+        <div id="pose-manager" style="display: none; margin-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 1rem;">
+            <div class="joints-header" style="border:none; margin-bottom:0.5rem">Pose Manager</div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button id="reset-pose-btn" class="secondary-btn" style="flex: 1; padding: 0.5rem; font-size: 0.8rem; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5;">↻ Reset</button>
+                <button id="export-pose-btn" class="upload-btn" style="flex: 1; padding: 0.5rem; font-size: 0.8rem; background-color: var(--primary);">📋 Copy Python</button>
+            </div>
+            <div id="export-status" style="font-size: 0.75rem; color: #10b981; margin-top: 0.5rem; text-align: center; opacity: 0; transition: opacity 0.3s ease;">Copied to clipboard!</div>
+        </div>
+
+        <div id="action-builder" style="display: none; margin-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 1rem;">
+            <div class="joints-header" style="border:none; margin-bottom:0.5rem; display: flex; justify-content: space-between;">
+                <span>Action Builder</span>
+                <span id="action-frame-count" style="font-size:0.75rem; color: #a5a5b0;">0 Frames</span>
+            </div>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center;">
+                <input type="number" id="frame-duration" value="1.5" step="0.1" min="0.1" style="width: 60px; padding: 0.5rem; background: #1f2130; color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; font-size: 0.8rem;" title="Duration (seconds)">
+                <span style="font-size: 0.75rem; color: #a5a5b0;">sec</span>
+                <button id="add-frame-btn" class="secondary-btn" style="flex: 1; padding: 0.5rem; font-size: 0.8rem; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #34d399;">+ Add Pose</button>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button id="play-action-btn" class="secondary-btn" style="flex: 1; padding: 0.5rem; font-size: 0.8rem;" disabled>▶ Play</button>
+                <button id="export-action-btn" class="upload-btn" style="flex: 1; padding: 0.5rem; font-size: 0.8rem;" disabled>📋 Copy Python</button>
+                <button id="clear-action-btn" class="secondary-btn" style="flex: 1; padding: 0.5rem; font-size: 0.8rem; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5;" disabled>🗑 Clear</button>
+            </div>
+            <div id="action-status" style="font-size: 0.75rem; color: #10b981; margin-top: 0.5rem; text-align: center; opacity: 0; transition: opacity 0.3s ease;">Copied action sequence!</div>
+        </div>
+    </div>
+
+    <div id="3d-canvas-container"></div>
+
+    <!-- Hidden file input for ZIP -->
+    <input type="file" id="zip-file-input" accept=".zip">
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "three/examples/jsm/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "urdf-loader": "https://esm.sh/urdf-loader@0.12.1?external=three"
+            }
+        }
+    </script>
+    <script type="module" src="app.js"></script>
+</body>
+</html>

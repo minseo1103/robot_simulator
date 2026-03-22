@@ -1,0 +1,129 @@
+<?xml version="1.0"?>
+<robot name="sample_7dof_arm">
+  <!-- Materials -->
+  <material name="black"><color rgba="0.1 0.1 0.1 1"/></material>
+  <material name="white"><color rgba="0.9 0.9 0.9 1"/></material>
+  <material name="orange"><color rgba="1.0 0.4 0.0 1"/></material>
+  <material name="blue"><color rgba="0.2 0.4 0.8 1"/></material>
+
+  <!-- Base -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+      <geometry><cylinder length="0.1" radius="0.15"/></geometry>
+      <material name="black"/>
+    </visual>
+  </link>
+
+  <!-- Joint 1 (Pan) -->
+  <joint name="j1_pan" type="revolute">
+    <parent link="base_link"/>
+    <child link="link1"/>
+    <origin xyz="0 0 0.1" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14" upper="3.14" effort="10" velocity="1"/>
+  </joint>
+  <link name="link1">
+    <visual>
+      <origin xyz="0 0 0.1" rpy="0 0 0"/>
+      <geometry><cylinder length="0.2" radius="0.1"/></geometry>
+      <material name="orange"/>
+    </visual>
+  </link>
+
+  <!-- Joint 2 (Shoulder Lift) -->
+  <joint name="j2_lift" type="revolute">
+    <parent link="link1"/>
+    <child link="link2"/>
+    <origin xyz="0 0 0.2" rpy="0 1.5708 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.57" upper="1.57" effort="10" velocity="1"/>
+  </joint>
+  <link name="link2">
+    <visual>
+      <origin xyz="0 0 0.2" rpy="0 0 0"/>
+      <geometry><cylinder length="0.4" radius="0.06"/></geometry>
+      <material name="white"/>
+    </visual>
+  </link>
+
+  <!-- Joint 3 (Upper Arm Roll) -->
+  <joint name="j3_roll" type="revolute">
+    <parent link="link2"/>
+    <child link="link3"/>
+    <origin xyz="0 0 0.4" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14" upper="3.14" effort="10" velocity="1"/>
+  </joint>
+  <link name="link3">
+    <visual>
+      <origin xyz="0 0 0.1" rpy="0 0 0"/>
+      <geometry><cylinder length="0.2" radius="0.07"/></geometry>
+      <material name="blue"/>
+    </visual>
+  </link>
+
+  <!-- Joint 4 (Elbow) -->
+  <joint name="j4_elbow" type="revolute">
+    <parent link="link3"/>
+    <child link="link4"/>
+    <origin xyz="0 0 0.2" rpy="0 1.5708 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-2.0" upper="2.0" effort="10" velocity="1"/>
+  </joint>
+  <link name="link4">
+    <visual>
+      <origin xyz="0 0 0.15" rpy="0 0 0"/>
+      <geometry><cylinder length="0.3" radius="0.05"/></geometry>
+      <material name="white"/>
+    </visual>
+  </link>
+
+  <!-- Joint 5 (Wrist Roll) -->
+  <joint name="j5_wrist_roll" type="revolute">
+    <parent link="link4"/>
+    <child link="link5"/>
+    <origin xyz="0 0 0.3" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14" upper="3.14" effort="10" velocity="1"/>
+  </joint>
+  <link name="link5">
+    <visual>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+      <geometry><cylinder length="0.1" radius="0.05"/></geometry>
+      <material name="orange"/>
+    </visual>
+  </link>
+
+  <!-- Joint 6 (Wrist Pitch) -->
+  <joint name="j6_wrist_pitch" type="revolute">
+    <parent link="link5"/>
+    <child link="link6"/>
+    <origin xyz="0 0 0.1" rpy="0 1.5708 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.57" upper="1.57" effort="10" velocity="1"/>
+  </joint>
+  <link name="link6">
+    <visual>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+      <geometry><cylinder length="0.1" radius="0.04"/></geometry>
+      <material name="white"/>
+    </visual>
+  </link>
+
+  <!-- Joint 7 (Wrist Yaw / Tool) -->
+  <joint name="j7_wrist_yaw" type="revolute">
+    <parent link="link6"/>
+    <child link="link7"/>
+    <origin xyz="0 0 0.1" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14" upper="3.14" effort="10" velocity="1"/>
+  </joint>
+  <link name="link7">
+    <visual>
+      <origin xyz="0 0 0.02" rpy="0 0 0"/>
+      <geometry><box size="0.05 0.1 0.04"/></geometry>
+      <material name="black"/>
+    </visual>
+  </link>
+</robot>
