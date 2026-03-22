@@ -205,13 +205,13 @@ const loader = new URDFLoader(manager);
 
 // Configure mapping for internal ROS 'package://' URL schemas
 loader.packages = {
-    'g1_description': './unitree_ros_repo/robots/g1_description'
+    'g1_description': './g1_model'
 };
 
 // Handle Built-in Unitree G1 Model
 document.getElementById('load-g1-btn').addEventListener('click', () => {
     statusEl.innerText = "Loading Unitree G1...";
-    loader.load('./unitree_ros_repo/robots/g1_description/g1_29dof.urdf',
+    loader.load('./g1_model/g1_29dof.urdf',
         robot => {
             setupRobotInScene(robot, "Unitree G1 (29-DOF)");
         },

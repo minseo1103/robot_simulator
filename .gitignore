@@ -1,5 +1,7 @@
 # Large URDF repository - too big for GitHub
 unitree_ros_repo/
+g1_model/
+!g1_model/
 
 # OS files
 .DS_Store
