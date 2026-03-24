@@ -113,7 +113,21 @@
                 <button id="clear-action-btn" class="secondary-btn" style="flex: 1; padding: 0.5rem; font-size: 0.8rem; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5;" disabled>🗑 Clear</button>
             </div>
             <div id="action-status" style="font-size: 0.75rem; color: #10b981; margin-top: 0.5rem; text-align: center; opacity: 0; transition: opacity 0.3s ease;">Copied action sequence!</div>
+            
+            <div id="action-frames-list" style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem; max-height: 200px; overflow-y: auto;">
+                <!-- Frames will be injected here -->
+            </div>
         </div>
+    </div>
+    
+    <div id="code-panel" style="position: absolute; top: 1rem; right: 1rem; width: 340px; max-height: calc(100vh - 2rem); overflow-y: auto; overflow-x: hidden; background: rgba(15, 17, 26, 0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 1.25rem; z-index: 10; display: flex; flex-direction: column; gap: 1rem;">
+        <div class="joints-header" style="border:none; margin: 0; padding: 0;">Code Execution</div>
+        <p style="font-size: 0.75rem; color: #a5a5b0; margin: 0;">Paste Python code defining waypoints and sequences to animate the robot.</p>
+        
+        <textarea id="code-input" style="width: 100%; height: 300px; background: #11121a; color: #e2e8f0; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 0.75rem; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.75rem; resize: vertical; white-space: pre;" placeholder="def build_way_left_sequence..."></textarea>
+        
+        <button id="run-code-btn" class="upload-btn" style="width: 100%; padding: 0.75rem; background-color: var(--primary);">🚀 Run Action Code</button>
+        <div id="code-status" style="font-size: 0.75rem; color: #ef4444; margin-top: 0.25rem; text-align: center; display: none;"></div>
     </div>
 
     <div id="3d-canvas-container"></div>
@@ -127,7 +141,8 @@
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
                 "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
                 "three/examples/jsm/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-                "urdf-loader": "https://esm.sh/urdf-loader@0.12.1?external=three"
+                "urdf-loader": "https://esm.sh/urdf-loader@0.12.1?external=three",
+                "jszip": "https://esm.sh/jszip@3.10.1"
             }
         }
     </script>

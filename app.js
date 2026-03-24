@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import URDFLoader from 'urdf-loader'; // provided via import map
+import JSZip from 'jszip';
 
 // --- 1. SETUP SCENE ---
 const container = document.getElementById('3d-canvas-container');
@@ -222,6 +223,120 @@ document.getElementById('load-g1-btn').addEventListener('click', () => {
         }
     );
 });
+
+// --- ZIP UPLOAD LOGIC ---
+const zipBtn = document.getElementById('upload-urdf-btn');
+const zipInput = document.getElementById('zip-file-input');
+const dropZone = document.getElementById('drop-zone');
+
+zipBtn.addEventListener('click', () => zipInput.click());
+
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, preventDefaults, false);
+});
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+['dragenter', 'dragover'].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
+});
+['dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
+});
+
+dropZone.addEventListener('drop', handleDrop, false);
+zipInput.addEventListener('change', (e) => handleFiles(e.target.files), false);
+
+function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    handleFiles(files);
+}
+
+async function handleFiles(files) {
+    if (files.length === 0) return;
+    const file = files[0];
+    if (!file.name.endsWith('.zip')) {
+        statusEl.innerText = "Please upload a .zip file.";
+        return;
+    }
+    
+    statusEl.innerText = "Reading ZIP...";
+    try {
+        const jszip = new JSZip();
+        const zip = await jszip.loadAsync(file);
+        
+        // Find URDF file
+        let urdfPath = null;
+        let urdfContent = null;
+        for (const [path, zipEntry] of Object.entries(zip.files)) {
+            if (!zipEntry.dir && path.endsWith('.urdf')) {
+                urdfPath = path;
+                urdfContent = await zipEntry.async('string');
+                break;
+            }
+        }
+        
+        if (!urdfContent) {
+            statusEl.innerText = "No .urdf file found in ZIP.";
+            return;
+        }
+        statusEl.innerText = "Parsing URDF... please wait for geometry meshes.";
+        
+        const fileMap = {};
+        for (const [path, zipEntry] of Object.entries(zip.files)) {
+            if (!zipEntry.dir) {
+                // Determine raw type
+                let extension = path.split('.').pop().toLowerCase();
+                let type = 'application/octet-stream';
+                if (extension === 'stl') type = 'model/stl';
+                if (extension === 'dae') type = 'model/vnd.collada+xml';
+                
+                const arrayBuffer = await zipEntry.async('uint8array');
+                const blob = new Blob([arrayBuffer], { type: type });
+                const blobUrl = URL.createObjectURL(blob);
+                
+                // Allow exact match or match on the basename/end string
+                fileMap[path] = blobUrl;
+                // also alias by filename
+                const filename = path.split('/').pop();
+                if (!fileMap[filename]) fileMap[filename] = blobUrl;
+            }
+        }
+        
+        // Custom manager to resolve paths
+        const zipManager = new THREE.LoadingManager();
+        zipManager.setURLModifier((url) => {
+            // Check if the URL matches anything in the zip
+            // Usually urdf-loader might try to request 'package://...'
+            const urlParts = url.split('/');
+            const filename = urlParts[urlParts.length - 1];
+            
+            // Try to match the filename first
+            if (fileMap[filename]) return fileMap[filename];
+            
+            // Try matching full paths if requested URL looks like a path
+            for (const zipPath in fileMap) {
+                if (url.includes(zipPath)) {
+                    return fileMap[zipPath];
+                }
+            }
+            return url;
+        });
+        
+        const zipLoader = new URDFLoader(zipManager);
+        zipLoader.packages = { 'g1_description': './' };
+        
+        const robot = zipLoader.parse(urdfContent);
+        setupRobotInScene(robot, file.name);
+        
+    } catch(err) {
+        statusEl.innerText = "Error loading ZIP: " + err.message;
+        console.error(err);
+    }
+}
 
 function loadRobotContent(urdfContent, filename) {
     try {
@@ -532,6 +647,49 @@ const updateActionUI = () => {
     document.getElementById('play-action-btn').disabled = disabled;
     document.getElementById('export-action-btn').disabled = disabled;
     document.getElementById('clear-action-btn').disabled = disabled;
+    
+    const listEl = document.getElementById('action-frames-list');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    
+    actionFrames.forEach((frame, idx) => {
+        const item = document.createElement('div');
+        item.style.display = 'flex';
+        item.style.justifyContent = 'space-between';
+        item.style.alignItems = 'center';
+        item.style.padding = '0.4rem 0.5rem';
+        item.style.background = 'rgba(255,255,255,0.05)';
+        item.style.borderRadius = '4px';
+        item.style.fontSize = '0.75rem';
+        
+        const label = document.createElement('span');
+        label.innerText = `Frame ${idx + 1} (${frame.duration}s)`;
+        
+        const previewBtn = document.createElement('button');
+        previewBtn.innerText = '👀 View';
+        previewBtn.className = 'secondary-btn';
+        previewBtn.style.padding = '0.2rem 0.4rem';
+        previewBtn.style.fontSize = '0.7rem';
+        previewBtn.style.flex = '0 0 auto';
+        
+        previewBtn.onclick = () => {
+            if (!currentRobot) return;
+            const names = Object.keys(frame.raw);
+            names.forEach(name => {
+                currentRobot.setJointValue(name, frame.raw[name]);
+                const input = document.getElementById(`val-${name}`);
+                const slider = document.getElementById(`slide-${name}`);
+                if (input && slider) {
+                    input.value = frame.raw[name].toFixed(2);
+                    slider.value = frame.raw[name];
+                }
+            });
+        };
+        
+        item.appendChild(label);
+        item.appendChild(previewBtn);
+        listEl.appendChild(item);
+    });
 };
 
 document.getElementById('add-frame-btn').addEventListener('click', () => {
@@ -590,3 +748,103 @@ document.getElementById('play-action-btn').addEventListener('click', () => {
     playbackFrames = actionFrames;
     playbackStartTime = performance.now();
 });
+// --- 5. CODE EXECUTION ---
+document.getElementById('run-code-btn')?.addEventListener('click', () => {
+    if (!currentRobot) return;
+    
+    const code = document.getElementById('code-input').value;
+    const statusEl = document.getElementById('code-status');
+    statusEl.style.display = 'block';
+    
+    try {
+        const parsedFrames = parsePythonAction(code);
+        if (parsedFrames.length === 0) {
+            throw new Error("No valid waypoints found in code.");
+        }
+        
+        statusEl.style.color = '#10b981';
+        statusEl.innerText = `Successfully parsed ${parsedFrames.length} frames. Playing...`;
+        
+        // Load into action builder
+        actionFrames = parsedFrames;
+        updateActionUI();
+        
+        // Play it
+        document.getElementById('play-action-btn').click();
+        
+        setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+        
+    } catch (err) {
+        statusEl.style.color = '#ef4444';
+        statusEl.innerText = "Error parsing code: " + err.message;
+        console.error(err);
+    }
+});
+
+function parsePythonAction(code) {
+    // Basic regex parser for the specific user format provided.
+    const frames = [];
+    
+    // 1. Extract waypoint arrays
+    // Looks for wpX = [ ... ]
+    const wpRegex = /wp\d+\s*=\s*\[([\s\S]*?)\]/g;
+    const waypoints = [];
+    let match;
+    while ((match = wpRegex.exec(code)) !== null) {
+        // clean up comments and whitespace, match numbers
+        const dataStr = match[1].replace(/#.*/g, '');
+        const nums = dataStr.match(/-?\d+(\.\d+)?/g);
+        if (nums) {
+            waypoints.push(nums.map(n => parseFloat(n)));
+        }
+    }
+    
+    if (waypoints.length === 0) return frames;
+    
+    // 2. Extract durations
+    // Looks for durations = (0.55, 0.70, 1.5)
+    let durations = [];
+    const durRegex = /durations\s*=\s*\((.*?)\)/;
+    const durMatch = durRegex.exec(code);
+    if (durMatch) {
+         durations = durMatch[1].match(/\d+(\.\d+)?/g).map(d => parseFloat(d));
+    }
+    
+    // If we have waypoints but no explicit durations list, just make them exactly 1.5s
+    while (durations.length < waypoints.length) {
+        durations.push(1.5);
+    }
+    
+    // 3. Map to joint names based on the order defined in getCurrentPoseArrayString!
+    const left_leg_joints = ['left_hip_pitch_joint', 'left_hip_roll_joint', 'left_hip_yaw_joint', 'left_knee_joint', 'left_ankle_pitch_joint', 'left_ankle_roll_joint'];
+    const right_leg_joints = ['right_hip_pitch_joint', 'right_hip_roll_joint', 'right_hip_yaw_joint', 'right_knee_joint', 'right_ankle_pitch_joint', 'right_ankle_roll_joint'];
+    const waist_joints = ['waist_yaw_joint', 'waist_roll_joint', 'waist_pitch_joint'];
+    const left_arm_joints = ['left_shoulder_pitch_joint', 'left_shoulder_roll_joint', 'left_shoulder_yaw_joint', 'left_elbow_joint', 'left_wrist_roll_joint', 'left_wrist_pitch_joint', 'left_wrist_yaw_joint'];
+    const right_arm_joints = ['right_shoulder_pitch_joint', 'right_shoulder_roll_joint', 'right_shoulder_yaw_joint', 'right_elbow_joint', 'right_wrist_roll_joint', 'right_wrist_pitch_joint', 'right_wrist_yaw_joint'];
+    
+    const jointOrder = [
+        ...left_leg_joints,
+        ...right_leg_joints,
+        ...waist_joints,
+        ...left_arm_joints,
+        ...right_arm_joints
+    ];
+    
+    waypoints.forEach((wp, idx) => {
+        const raw = {};
+        for(let i=0; i<jointOrder.length; i++) {
+            if (i < wp.length) {
+                raw[jointOrder[i]] = wp[i];
+            }
+        }
+        
+        let pyStr = ""; // We can reconstruct or leave empty for generated frames
+        frames.push({
+            raw: raw,
+            py: pyStr,
+            duration: durations[idx] || 1.5
+        });
+    });
+    
+    return frames;
+}
