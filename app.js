@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import URDFLoader from 'urdf-loader'; // provided via import map
-import JSZip from 'jszip';
 
 // --- 1. SETUP SCENE ---
 const container = document.getElementById('3d-canvas-container');
@@ -224,119 +223,20 @@ document.getElementById('load-g1-btn').addEventListener('click', () => {
     );
 });
 
-// --- ZIP UPLOAD LOGIC ---
-const zipBtn = document.getElementById('upload-urdf-btn');
-const zipInput = document.getElementById('zip-file-input');
-const dropZone = document.getElementById('drop-zone');
-
-zipBtn.addEventListener('click', () => zipInput.click());
-
-['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, preventDefaults, false);
-});
-function preventDefaults(e) {
-    e.preventDefault();
-    e.stopPropagation();
-}
-
-['dragenter', 'dragover'].forEach(eventName => {
-    dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
-});
-['dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
+// --- MINIMIZE LOGIC ---
+document.getElementById('minimize-ui-btn')?.addEventListener('click', (e) => {
+    const content = document.getElementById('ui-panel-content');
+    const isMinimized = content.style.display === 'none';
+    content.style.display = isMinimized ? 'block' : 'none';
+    e.target.innerText = isMinimized ? '−' : '+';
 });
 
-dropZone.addEventListener('drop', handleDrop, false);
-zipInput.addEventListener('change', (e) => handleFiles(e.target.files), false);
-
-function handleDrop(e) {
-    const dt = e.dataTransfer;
-    const files = dt.files;
-    handleFiles(files);
-}
-
-async function handleFiles(files) {
-    if (files.length === 0) return;
-    const file = files[0];
-    if (!file.name.endsWith('.zip')) {
-        statusEl.innerText = "Please upload a .zip file.";
-        return;
-    }
-    
-    statusEl.innerText = "Reading ZIP...";
-    try {
-        const jszip = new JSZip();
-        const zip = await jszip.loadAsync(file);
-        
-        // Find URDF file
-        let urdfPath = null;
-        let urdfContent = null;
-        for (const [path, zipEntry] of Object.entries(zip.files)) {
-            if (!zipEntry.dir && path.endsWith('.urdf')) {
-                urdfPath = path;
-                urdfContent = await zipEntry.async('string');
-                break;
-            }
-        }
-        
-        if (!urdfContent) {
-            statusEl.innerText = "No .urdf file found in ZIP.";
-            return;
-        }
-        statusEl.innerText = "Parsing URDF... please wait for geometry meshes.";
-        
-        const fileMap = {};
-        for (const [path, zipEntry] of Object.entries(zip.files)) {
-            if (!zipEntry.dir) {
-                // Determine raw type
-                let extension = path.split('.').pop().toLowerCase();
-                let type = 'application/octet-stream';
-                if (extension === 'stl') type = 'model/stl';
-                if (extension === 'dae') type = 'model/vnd.collada+xml';
-                
-                const arrayBuffer = await zipEntry.async('uint8array');
-                const blob = new Blob([arrayBuffer], { type: type });
-                const blobUrl = URL.createObjectURL(blob);
-                
-                // Allow exact match or match on the basename/end string
-                fileMap[path] = blobUrl;
-                // also alias by filename
-                const filename = path.split('/').pop();
-                if (!fileMap[filename]) fileMap[filename] = blobUrl;
-            }
-        }
-        
-        // Custom manager to resolve paths
-        const zipManager = new THREE.LoadingManager();
-        zipManager.setURLModifier((url) => {
-            // Check if the URL matches anything in the zip
-            // Usually urdf-loader might try to request 'package://...'
-            const urlParts = url.split('/');
-            const filename = urlParts[urlParts.length - 1];
-            
-            // Try to match the filename first
-            if (fileMap[filename]) return fileMap[filename];
-            
-            // Try matching full paths if requested URL looks like a path
-            for (const zipPath in fileMap) {
-                if (url.includes(zipPath)) {
-                    return fileMap[zipPath];
-                }
-            }
-            return url;
-        });
-        
-        const zipLoader = new URDFLoader(zipManager);
-        zipLoader.packages = { 'g1_description': './' };
-        
-        const robot = zipLoader.parse(urdfContent);
-        setupRobotInScene(robot, file.name);
-        
-    } catch(err) {
-        statusEl.innerText = "Error loading ZIP: " + err.message;
-        console.error(err);
-    }
-}
+document.getElementById('minimize-code-btn')?.addEventListener('click', (e) => {
+    const content = document.getElementById('code-panel-content');
+    const isMinimized = content.style.display === 'none';
+    content.style.display = isMinimized ? 'flex' : 'none';
+    e.target.innerText = isMinimized ? '−' : '+';
+});
 
 function loadRobotContent(urdfContent, filename) {
     try {

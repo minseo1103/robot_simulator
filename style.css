@@ -86,9 +86,7 @@ header p {
     margin-bottom: 1rem;
 }
 
-input[type="file"] {
-    display: none;
-}
+
 
 .upload-btn, .secondary-btn {
     flex: 1;
@@ -269,25 +267,6 @@ input[type=range]:focus {
     padding-top: 0.5rem;
 }
 
-/* --- DROP ZONE --- */
-#drop-zone {
-    border: 2px dashed rgba(99, 102, 241, 0.35);
-    border-radius: 10px;
-    padding: 0.75rem 1rem;
-    text-align: center;
-    font-size: 0.78rem;
-    color: var(--text-muted);
-    margin-bottom: 0.75rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    background: rgba(99, 102, 241, 0.04);
-}
-
-#drop-zone:hover, #drop-zone.drag-over {
-    border-color: rgba(99, 102, 241, 0.7);
-    background: rgba(99, 102, 241, 0.1);
-    color: #c7d2fe;
-}
 
 /* --- PRESET LIBRARY --- */
 .preset-btn {
