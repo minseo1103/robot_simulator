@@ -226,15 +226,19 @@ document.getElementById('load-g1-btn').addEventListener('click', () => {
 // --- MINIMIZE LOGIC ---
 document.getElementById('minimize-ui-btn')?.addEventListener('click', (e) => {
     const content = document.getElementById('ui-panel-content');
+    const panel = document.getElementById('ui-panel');
     const isMinimized = content.style.display === 'none';
     content.style.display = isMinimized ? 'block' : 'none';
+    panel.style.width = isMinimized ? '360px' : 'fit-content';
     e.target.innerText = isMinimized ? '−' : '+';
 });
 
 document.getElementById('minimize-code-btn')?.addEventListener('click', (e) => {
     const content = document.getElementById('code-panel-content');
+    const panel = document.getElementById('code-panel');
     const isMinimized = content.style.display === 'none';
     content.style.display = isMinimized ? 'flex' : 'none';
+    panel.style.width = isMinimized ? '340px' : 'fit-content';
     e.target.innerText = isMinimized ? '−' : '+';
 });
 
