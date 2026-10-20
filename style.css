@@ -25,7 +25,7 @@ body, html {
     color: var(--text-main);
 }
 
-#3d-canvas-container {
+.stage {
     position: absolute;
     top: 0;
     left: 0;
@@ -59,6 +59,128 @@ body, html {
 #ui-panel::-webkit-scrollbar-thumb {
     background: rgba(255,255,255,0.2);
     border-radius: 3px;
+}
+
+#ui-panel > header,
+.ui-titlebar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    white-space: nowrap;
+    margin-bottom: 1.5rem;
+}
+
+.ui-title {
+    min-width: 0;
+}
+
+#ui-panel.is-minimized,
+#code-panel.is-minimized {
+    width: fit-content;
+}
+
+#ui-panel.is-minimized #ui-panel-content,
+#code-panel.is-minimized #code-panel-content {
+    display: none;
+}
+
+.panel-min-btn {
+    background: transparent;
+    border: none;
+    color: #a5a5b0;
+    font-size: 1.25rem;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 0.25rem;
+    line-height: 1;
+    flex: none;
+}
+
+.panel-min-glyph::before {
+    content: '−';
+}
+
+#ui-panel.is-minimized .panel-min-glyph::before,
+#code-panel.is-minimized .panel-min-glyph::before {
+    content: '+';
+}
+
+#code-panel {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 340px;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: rgba(15, 17, 26, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 1.25rem;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.panel-titlebar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    white-space: nowrap;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 0.5rem;
+    margin: 0;
+}
+
+.panel-heading {
+    border: none;
+    margin: 0;
+    padding: 0;
+}
+
+#code-panel-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.code-panel-lead {
+    font-size: 0.75rem;
+    color: #a5a5b0;
+    margin: 0;
+}
+
+#code-input {
+    width: 100%;
+    height: 300px;
+    background: #11121a;
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 0.75rem;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.75rem;
+    resize: vertical;
+    white-space: pre;
+}
+
+#mobile-dock {
+    display: none;
+}
+
+.webcam-mobile-note {
+    display: none;
+}
+
+.stage canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
 }
 
 header {
@@ -216,6 +338,22 @@ input[type=range]::-webkit-slider-runnable-track {
 
 input[type=range]:focus {
     outline: none;
+}
+
+input[type=range]::-moz-range-thumb {
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+    border: 2px solid var(--primary);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+input[type=range]::-moz-range-track {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
 }
 
 .category-details {
@@ -465,6 +603,13 @@ input[type=range]:focus {
     border-radius: 10px;
 }
 
+#reset-pose-btn,
+#export-pose-btn {
+    flex: 1;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+}
+
 .share-pose-btn {
     width: 100%;
     margin-top: 0.5rem;
@@ -493,6 +638,309 @@ input[type=range]:focus {
 
 @keyframes rs-spin {
     to { transform: rotate(360deg); }
+}
+
+/* Narrow and short viewports: bottom sheet instead of two floating columns.
+   Phone landscape is often wider than 768px but shorter than 520px. */
+@media (max-width: 768px), (max-height: 520px) and (max-width: 1024px) {
+    html {
+        --dock-h: calc(56px + env(safe-area-inset-bottom, 0px));
+        --sheet-h: min(42dvh, calc(50dvh - var(--dock-h) - 0.25rem));
+    }
+
+    .stage {
+        width: 100%;
+        height: auto;
+        right: 0;
+        bottom: calc(var(--dock-h) + var(--sheet-h));
+    }
+
+    #ui-panel,
+    #code-panel {
+        position: fixed;
+        top: auto;
+        left: 0;
+        right: 0;
+        bottom: var(--dock-h);
+        width: auto;
+        height: var(--sheet-h);
+        max-height: var(--sheet-h);
+        margin: 0;
+        border-radius: 16px 16px 0 0;
+        padding: 0.75rem 0.85rem 0.65rem;
+        z-index: 15;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    #code-panel {
+        display: none;
+    }
+
+    html[data-mobile-tab="code"] #code-panel {
+        display: flex;
+    }
+
+    html[data-mobile-tab="code"] #ui-panel {
+        display: none;
+    }
+
+    html[data-mobile-tab="code"]:has(#code-panel.is-minimized),
+    html:not([data-mobile-tab="code"]):has(#ui-panel.is-minimized) {
+        --sheet-h: 4.25rem;
+    }
+
+    #ui-panel.is-minimized,
+    #code-panel.is-minimized {
+        width: auto;
+        overflow: hidden;
+        justify-content: center;
+        padding-top: 0.35rem;
+        padding-bottom: 0.35rem;
+    }
+
+    #ui-panel.is-minimized > header,
+    #ui-panel.is-minimized .ui-titlebar {
+        margin-bottom: 0;
+        align-items: center;
+    }
+
+    #ui-panel.is-minimized .ui-title p {
+        display: none;
+    }
+
+    #ui-panel > header,
+    .ui-titlebar {
+        white-space: normal;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        position: sticky;
+        top: -0.75rem;
+        z-index: 2;
+        background: rgba(20, 22, 35, 0.96);
+        padding-top: 0.15rem;
+    }
+
+    .panel-titlebar {
+        position: sticky;
+        top: -0.75rem;
+        z-index: 2;
+        background: rgba(15, 17, 26, 0.96);
+    }
+
+    header h1 {
+        font-size: 1.15rem;
+    }
+
+    header p {
+        font-size: 0.78rem;
+        white-space: normal;
+    }
+
+    .panel-min-btn {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        touch-action: manipulation;
+    }
+
+    .panel-min-btn:active {
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    #mobile-dock {
+        display: flex;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 20;
+        height: var(--dock-h);
+        box-sizing: border-box;
+        gap: 0.5rem;
+        padding: 6px 0.6rem env(safe-area-inset-bottom, 0px);
+        background: rgba(15, 17, 26, 0.96);
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    #mobile-dock button {
+        flex: 1;
+        min-height: 44px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.05);
+        color: #e4e4ee;
+        font: inherit;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        touch-action: manipulation;
+    }
+
+    #mobile-dock button:active,
+    #mobile-dock button[aria-pressed="true"] {
+        background: rgba(99, 102, 241, 0.38);
+        border-color: rgba(165, 180, 252, 0.85);
+        color: #fff;
+    }
+
+    .preset-btn,
+    .load-g1-btn,
+    .share-pose-btn,
+    #export-pose-btn,
+    #reset-pose-btn,
+    #run-code-btn,
+    .start-demo-btn,
+    .onboarding-actions .upload-btn,
+    .onboarding-actions .secondary-btn {
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+
+    .preset-btn {
+        padding: 0.65rem 0.5rem;
+        font-size: 0.92rem;
+        border-radius: 10px;
+    }
+
+    .preset-btn:active {
+        background: rgba(99, 102, 241, 0.35);
+        border-color: rgba(99, 102, 241, 0.7);
+        color: #e0e7ff;
+        transform: none;
+    }
+
+    #preset-grid {
+        gap: 0.55rem;
+    }
+
+    .load-g1-btn,
+    .share-pose-btn,
+    #export-pose-btn,
+    #reset-pose-btn {
+        padding: 0.7rem 0.75rem;
+        font-size: 0.95rem;
+    }
+
+    .joint-category-header {
+        min-height: 44px;
+        padding-top: 0.65rem;
+        padding-bottom: 0.65rem;
+    }
+
+    .slider-wrapper {
+        margin-bottom: 1rem;
+    }
+
+    input[type=range] {
+        height: 44px;
+        margin: 0;
+        touch-action: manipulation;
+    }
+
+    input[type=range]::-webkit-slider-runnable-track {
+        height: 8px;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+        height: 28px;
+        width: 28px;
+        margin-top: -10px;
+    }
+
+    input[type=range]::-moz-range-track {
+        height: 8px;
+    }
+
+    input[type=range]::-moz-range-thumb {
+        height: 28px;
+        width: 28px;
+    }
+
+    .val-input {
+        min-height: 36px;
+        width: 72px;
+        font-size: 16px;
+    }
+
+    #code-input,
+    #frame-duration,
+    #ik-end-effector {
+        font-size: 16px;
+    }
+
+    #code-input {
+        height: 9rem;
+    }
+
+    #action-builder .secondary-btn,
+    #action-builder .upload-btn,
+    #webcam-toggle-btn,
+    #webcam-capture-btn,
+    #ik-toggle-btn,
+    #add-frame-btn,
+    #play-action-btn,
+    #export-action-btn,
+    #clear-action-btn {
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+
+    .webcam-mobile-note {
+        display: block;
+        font-size: 0.8rem;
+        line-height: 1.4;
+        color: var(--text-muted);
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        padding: 0.65rem 0.75rem;
+        margin-bottom: 0.9rem;
+    }
+
+    #webcam-section {
+        display: none !important;
+    }
+
+    .onboarding {
+        top: auto;
+        bottom: calc(var(--dock-h) + var(--sheet-h) + 0.45rem);
+        width: min(380px, calc(100vw - 1rem));
+    }
+}
+
+@media (max-height: 520px) and (max-width: 1024px) and (orientation: landscape) {
+    html {
+        --sheet-h: min(34dvh, 8.5rem);
+    }
+
+    html[data-mobile-tab="code"]:has(#code-panel.is-minimized),
+    html:not([data-mobile-tab="code"]):has(#ui-panel.is-minimized) {
+        --sheet-h: 3.25rem;
+    }
+
+    .onboarding {
+        top: 0.4rem;
+        bottom: auto;
+        left: auto;
+        right: 0.5rem;
+        transform: none;
+        width: min(260px, 42vw);
+    }
+
+    .onboarding-card {
+        padding: 0.65rem 0.7rem 0.6rem;
+    }
+
+    #onboarding-body {
+        margin-bottom: 0.45rem;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

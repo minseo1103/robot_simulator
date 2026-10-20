@@ -29,9 +29,15 @@ A link reopens the same joint pose, and a short action sequence when it fits. No
 - [x] Action Builder frames are included when the absolute URL stays under about 2,000 characters. Longer sequences share the pose only; the pose panel says so.
 - [x] Events on the Phase 0 hook: `share_copy`, `share_load`.
 
-## Phase 3 — Mobile UI
+## Phase 3 — Mobile UI — done
 
-Phone layout: reachable panels, touch-friendly joint controls, and a viewport that is not desktop-only.
+Phone and short landscape windows keep the robot on screen. The two floating columns become a bottom sheet with Controls and Code tabs.
+
+- [x] At widths of 768px and below, and on short landscape screens (height ≤ 520px and width ≤ 1024px), controls and code sit in a bottom sheet. A tab bar switches between them. Minimize still collapses the open sheet. The code sheet starts collapsed.
+- [x] Pose presets, Load/Reload, Copy Python, and Copy share link use at least a 44px tap target. Joint sliders have a larger thumb and track so a thumb can drag them without hover.
+- [x] Webcam capture stays hidden on small screens, with a note that it is best on desktop. The desktop webcam block is unchanged.
+- [x] The 3D view fills the space above the sheet in portrait and landscape, so an open sheet does not cover the robot.
+- [x] Event on the Phase 0 hook: `mobile_layout` (once per page, when the narrow layout applies).
 
 ## Phase 4 — SEO, landing, and one official demo URL
 

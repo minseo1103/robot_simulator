@@ -16,7 +16,6 @@ const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerH
 camera.position.set(3, 2, 3);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -132,11 +131,19 @@ const axesHelper = new THREE.AxesHelper(1);
 scene.add(axesHelper);
 
 // --- RESIZE HANDLER ---
-window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
+function resizeRenderer() {
+    const width = container.clientWidth || window.innerWidth;
+    const height = container.clientHeight || window.innerHeight;
+    if (width < 2 || height < 2) return;
+    camera.aspect = width / height;
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
+    renderer.setSize(width, height, false);
+}
+resizeRenderer();
+window.addEventListener('resize', resizeRenderer);
+if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(() => resizeRenderer()).observe(container);
+}
 
 // --- ANIMATION LOOP ---
 let isPlaying = false;
@@ -366,24 +373,85 @@ startDemoBtn?.addEventListener('click', () => {
     });
 });
 
-// --- MINIMIZE LOGIC ---
-document.getElementById('minimize-ui-btn')?.addEventListener('click', (e) => {
-    const content = document.getElementById('ui-panel-content');
-    const panel = document.getElementById('ui-panel');
-    const isMinimized = content.style.display === 'none';
-    content.style.display = isMinimized ? 'block' : 'none';
-    panel.style.width = isMinimized ? '360px' : 'fit-content';
-    e.target.innerText = isMinimized ? '−' : '+';
+// --- PANELS: minimize, and a bottom sheet on narrow viewports ---
+const NARROW_MQ = '(max-width: 768px), (max-height: 520px) and (max-width: 1024px)';
+const narrowMql = window.matchMedia(NARROW_MQ);
+const uiPanel = document.getElementById('ui-panel');
+const codePanel = document.getElementById('code-panel');
+const uiMinBtn = document.getElementById('minimize-ui-btn');
+const codeMinBtn = document.getElementById('minimize-code-btn');
+let codeTouched = false;
+let didTrackMobileLayout = false;
+
+function setMinimized(panel, minimized) {
+    if (!panel) return;
+    panel.classList.toggle('is-minimized', minimized);
+    if (panel.id === 'code-panel') {
+        panel.classList.toggle('is-open', !minimized);
+    }
+    const button = panel.querySelector('.panel-min-btn');
+    if (button) {
+        const name = panel.id === 'code-panel' ? 'code' : 'controls';
+        button.setAttribute('aria-expanded', minimized ? 'false' : 'true');
+        button.setAttribute('aria-label', minimized ? `Expand ${name}` : `Collapse ${name}`);
+    }
+}
+
+function setMobileTab(tab) {
+    document.documentElement.dataset.mobileTab = tab;
+    const controlsTab = document.getElementById('mobile-tab-controls');
+    const codeTab = document.getElementById('mobile-tab-code');
+    if (controlsTab) controlsTab.setAttribute('aria-pressed', tab === 'controls' ? 'true' : 'false');
+    if (codeTab) codeTab.setAttribute('aria-pressed', tab === 'code' ? 'true' : 'false');
+}
+
+function syncNarrowLayout() {
+    const narrow = narrowMql.matches;
+    document.documentElement.classList.toggle('layout-narrow', narrow);
+    if (!codeTouched) {
+        setMinimized(codePanel, narrow);
+    }
+    if (narrow && !document.documentElement.dataset.mobileTab) {
+        setMobileTab('controls');
+    }
+    if (narrow && !didTrackMobileLayout) {
+        didTrackMobileLayout = true;
+        const portrait = window.matchMedia('(orientation: portrait)').matches;
+        track('mobile_layout', {
+            width: Math.round(window.innerWidth),
+            height: Math.round(window.innerHeight),
+            orientation: portrait ? 'portrait' : 'landscape',
+        });
+    }
+}
+
+uiMinBtn?.addEventListener('click', () => {
+    setMinimized(uiPanel, !uiPanel.classList.contains('is-minimized'));
 });
 
-document.getElementById('minimize-code-btn')?.addEventListener('click', (e) => {
-    const content = document.getElementById('code-panel-content');
-    const panel = document.getElementById('code-panel');
-    const isMinimized = content.style.display === 'none';
-    content.style.display = isMinimized ? 'flex' : 'none';
-    panel.style.width = isMinimized ? '340px' : 'fit-content';
-    e.target.innerText = isMinimized ? '−' : '+';
+codeMinBtn?.addEventListener('click', () => {
+    codeTouched = true;
+    setMinimized(codePanel, !codePanel.classList.contains('is-minimized'));
 });
+
+document.getElementById('mobile-tab-controls')?.addEventListener('click', () => {
+    setMobileTab('controls');
+    setMinimized(uiPanel, false);
+});
+
+document.getElementById('mobile-tab-code')?.addEventListener('click', () => {
+    codeTouched = true;
+    setMobileTab('code');
+    setMinimized(codePanel, false);
+});
+
+if (typeof narrowMql.addEventListener === 'function') {
+    narrowMql.addEventListener('change', syncNarrowLayout);
+} else if (typeof narrowMql.addListener === 'function') {
+    narrowMql.addListener(syncNarrowLayout);
+}
+
+syncNarrowLayout();
 
 function loadRobotContent(urdfContent, filename) {
     try {

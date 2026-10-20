@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Unitree G1 Robot Kinematics Simulator | 3D Web Simulation</title>
     
     <!-- SEO Meta Tags -->
@@ -23,12 +23,12 @@
 </head>
 <body>
     <div id="ui-panel">
-        <header style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; white-space: nowrap; gap: 1rem;">
-            <div>
+        <header class="ui-titlebar">
+            <div class="ui-title">
                 <h1>Robot Kinematics</h1>
                 <p>Unitree G1 29-DOF Simulation Environment.</p>
             </div>
-            <button id="minimize-ui-btn" style="background: transparent; border: none; color: #a5a5b0; font-size: 1.25rem; font-weight: bold; cursor: pointer; padding: 0 0.25rem;">−</button>
+            <button id="minimize-ui-btn" class="panel-min-btn" type="button" aria-expanded="true" aria-label="Collapse controls"><span class="panel-min-glyph" aria-hidden="true"></span></button>
         </header>
 
         <div id="ui-panel-content">
@@ -40,6 +40,8 @@
                 <p id="robot-status-detail">The 29-DOF model opens on its own.</p>
                 <button id="start-demo-btn" type="button" class="start-demo-btn" hidden>Start demo</button>
             </div>
+
+        <p id="webcam-mobile-note" class="webcam-mobile-note">Webcam pose is best on a desktop browser. Pose capture is not available on a small screen yet.</p>
 
         <!-- Webcam Pose Panel -->
         <div id="webcam-section" style="display: none; margin-bottom: 1rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; overflow: hidden;">
@@ -89,8 +91,8 @@
         <div id="pose-manager" style="display: none; margin-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 1rem;">
             <div class="joints-header" style="border:none; margin-bottom:0.5rem">Pose Manager</div>
             <div style="display: flex; gap: 0.5rem;">
-                <button id="reset-pose-btn" class="secondary-btn" style="flex: 1; padding: 0.5rem; font-size: 0.8rem; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5;">↻ Reset</button>
-                <button id="export-pose-btn" class="upload-btn" style="flex: 1; padding: 0.5rem; font-size: 0.8rem; background-color: var(--primary);">📋 Copy Python</button>
+                <button id="reset-pose-btn" class="secondary-btn" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5;">↻ Reset</button>
+                <button id="export-pose-btn" class="upload-btn" style="background-color: var(--primary);">📋 Copy Python</button>
             </div>
             <button id="share-pose-btn" type="button" class="secondary-btn share-pose-btn">Copy share link</button>
             <p class="share-hint">Action frames are included while the link stays under about 2,000 characters.</p>
@@ -123,23 +125,28 @@
         </div> <!-- End ui-panel-content -->
     </div>
     
-    <div id="code-panel" style="position: absolute; top: 1rem; right: 1rem; width: 340px; max-height: calc(100vh - 2rem); overflow-y: auto; overflow-x: hidden; background: rgba(15, 17, 26, 0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 1.25rem; z-index: 10; display: flex; flex-direction: column; gap: 1rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem; margin: 0; white-space: nowrap; gap: 1rem;">
-            <div class="joints-header" style="border:none; margin: 0; padding: 0;">Code Execution</div>
-            <button id="minimize-code-btn" style="background: transparent; border: none; color: #a5a5b0; font-size: 1.25rem; font-weight: bold; cursor: pointer; padding: 0 0.25rem; line-height: 1;">−</button>
+    <div id="code-panel">
+        <div class="panel-titlebar">
+            <div class="joints-header panel-heading">Code Execution</div>
+            <button id="minimize-code-btn" class="panel-min-btn" type="button" aria-expanded="true" aria-label="Collapse code"><span class="panel-min-glyph" aria-hidden="true"></span></button>
         </div>
         
-        <div id="code-panel-content" style="display: flex; flex-direction: column; gap: 1rem;">
-            <p style="font-size: 0.75rem; color: #a5a5b0; margin: 0;">Paste Python code defining waypoints and sequences to animate the robot.</p>
+        <div id="code-panel-content">
+            <p class="code-panel-lead">Paste Python code defining waypoints and sequences to animate the robot.</p>
             
-            <textarea id="code-input" style="width: 100%; height: 300px; background: #11121a; color: #e2e8f0; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 0.75rem; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.75rem; resize: vertical; white-space: pre;" placeholder="def build_way_left_sequence..."></textarea>
+            <textarea id="code-input" placeholder="def build_way_left_sequence..."></textarea>
             
             <button id="run-code-btn" class="upload-btn" style="width: 100%; padding: 0.75rem; background-color: var(--primary);">🚀 Run Action Code</button>
             <div id="code-status" style="font-size: 0.75rem; color: #ef4444; margin-top: 0.25rem; text-align: center; display: none;"></div>
         </div>
     </div>
 
-    <div id="3d-canvas-container"></div>
+    <div id="3d-canvas-container" class="stage"></div>
+
+    <nav id="mobile-dock" aria-label="Simulator panels">
+        <button type="button" id="mobile-tab-controls" aria-controls="ui-panel" aria-pressed="true">Controls</button>
+        <button type="button" id="mobile-tab-code" aria-controls="code-panel" aria-pressed="false">Code</button>
+    </nav>
 
     <div id="onboarding" class="onboarding" hidden>
         <div class="onboarding-card" role="dialog" aria-labelledby="onboarding-title" aria-describedby="onboarding-body">
@@ -164,6 +171,6 @@
             }
         }
     </script>
-    <script type="module" src="app.js?v=phase2"></script>
+    <script type="module" src="app.js?v=phase3"></script>
 </body>
 </html>
