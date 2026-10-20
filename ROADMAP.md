@@ -20,9 +20,14 @@ Onboarding so a first visit shows the robot and a single obvious next step (move
 - [x] The empty joint list is a loading state until the model is ready. After load, the pose library, joint controls, and Python export are shown.
 - [x] Events on the Phase 0 hook: `onboarding_start`, `g1_autoload`, `onboarding_dismiss`, `demo_preset`.
 
-## Phase 2 — Shareable pose and action URLs
+## Phase 2 — Shareable pose and action URLs — done
 
-Put a pose or an action sequence in the URL so a link reopens the same motion. No account.
+A link reopens the same joint pose, and a short action sequence when it fits. No account and no shortener.
+
+- [x] Copy share link writes an absolute `?pose=` URL. The payload is base64url of packed int16 centiradians (0.01 rad) for non-zero G1 joints. `#p=` and `#pose=` are accepted on load.
+- [x] After G1 auto-load, a pose in the URL is applied and the joint sliders update. The tab title becomes “Shared pose · Robot Kinematics”.
+- [x] Action Builder frames are included when the absolute URL stays under about 2,000 characters. Longer sequences share the pose only; the pose panel says so.
+- [x] Events on the Phase 0 hook: `share_copy`, `share_load`.
 
 ## Phase 3 — Mobile UI
 

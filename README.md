@@ -23,6 +23,7 @@ Then visit http://localhost:8080/. No install or build step is required. The pag
 - Webcam pose
 - Inverse kinematics target
 - Python pose export (copy to clipboard)
+- Share link for the current pose (`?pose=`). Action Builder frames are included when the link stays under about 2,000 characters
 - Action builder (keyframes, playback, and Python export)
 
 ## Screenshot
@@ -40,9 +41,9 @@ To attach a backend later, set a hook before the app module runs:
 ```html
 <script>
   window.__RS_ANALYTICS__ = (name, detail) => {
-    // name: page_view | load_g1 | g1_autoload | preset_click | demo_preset | export_pose | webcam_start | onboarding_start | onboarding_dismiss
+    // name: page_view | load_g1 | g1_autoload | preset_click | demo_preset | export_pose | webcam_start | onboarding_start | onboarding_dismiss | share_copy | share_load
   };
 </script>
 ```
 
-Events currently emitted: `page_view`, `load_g1`, `g1_autoload`, `preset_click`, `demo_preset`, `export_pose`, `webcam_start`, `onboarding_start`, `onboarding_dismiss`.
+Events currently emitted: `page_view`, `load_g1`, `g1_autoload`, `preset_click`, `demo_preset`, `export_pose`, `webcam_start`, `onboarding_start`, `onboarding_dismiss`, `share_copy`, `share_load`.
