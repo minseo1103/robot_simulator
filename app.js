@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import URDFLoader from 'urdf-loader'; // provided via import map
+import { track } from './analytics.js';
+
+track('page_view');
 
 // --- 1. SETUP SCENE ---
 const container = document.getElementById('3d-canvas-container');
@@ -138,11 +141,24 @@ window.addEventListener('resize', () => {
 let isPlaying = false;
 let playbackStartTime = 0;
 let playbackFrames = [];
+let poseTween = null;
 
 function animate(time) {
     if (time === undefined) time = performance.now();
     requestAnimationFrame(animate);
     controls.update();
+
+    if (!isPlaying && poseTween && currentRobot) {
+        const elapsed = time - poseTween.start;
+        const t = poseTween.duration <= 0 ? 1 : Math.min(1, elapsed / poseTween.duration);
+        const eased = t * t * (3 - 2 * t);
+        const names = Object.keys(poseTween.to);
+        for (let i = 0; i < names.length; i++) {
+            const name = names[i];
+            writeJoint(name, poseTween.from[name] + (poseTween.to[name] - poseTween.from[name]) * eased);
+        }
+        if (t >= 1) poseTween = null;
+    }
 
     if (isPlaying && currentRobot && playbackFrames.length > 0) {
         const elapsed = (time - playbackStartTime) / 1000.0;
@@ -197,8 +213,90 @@ requestAnimationFrame(animate);
 
 // --- 2. ROBOT LOADING LOGIC ---
 let currentRobot = null;
-const statusEl = document.getElementById('upload-status');
 const jointsContainer = document.getElementById('joints-container');
+const robotStatusEl = document.getElementById('robot-status');
+const robotStatusTitleEl = document.getElementById('robot-status-title');
+const robotStatusDetailEl = document.getElementById('robot-status-detail');
+const startDemoBtn = document.getElementById('start-demo-btn');
+const loadG1Btn = document.getElementById('load-g1-btn');
+const jointsBlock = document.getElementById('joints-block');
+const G1_URDF_URL = './g1_model/g1_29dof.urdf';
+let g1Loading = false;
+let g1LoadToken = 0;
+
+function jointLimits(joint) {
+    const min = joint.limit && joint.limit.lower !== undefined ? parseFloat(joint.limit.lower) : -Math.PI;
+    const max = joint.limit && joint.limit.upper !== undefined ? parseFloat(joint.limit.upper) : Math.PI;
+    return { min, max };
+}
+
+function clampJoint(joint, value) {
+    const { min, max } = jointLimits(joint);
+    if (Number.isNaN(value)) return 0;
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+}
+
+function isMovableJoint(joint) {
+    return joint && joint.jointType !== 'fixed' && joint.jointType !== 'floating' && joint.name !== 'floating_base_joint';
+}
+
+function writeJoint(name, value) {
+    if (!currentRobot) return;
+    const joint = currentRobot.joints[name];
+    if (!isMovableJoint(joint)) return;
+    const next = clampJoint(joint, value);
+    currentRobot.setJointValue(name, next);
+    const input = document.getElementById(`val-${name}`);
+    const slider = document.getElementById(`slide-${name}`);
+    if (input) input.value = next.toFixed(2);
+    if (slider) slider.value = String(next);
+}
+
+function readJoint(name) {
+    const slider = document.getElementById(`slide-${name}`);
+    if (slider && slider.value !== '') {
+        const parsed = parseFloat(slider.value);
+        if (!Number.isNaN(parsed)) return parsed;
+    }
+    const joint = currentRobot && currentRobot.joints[name];
+    return joint && typeof joint.angle === 'number' ? joint.angle : 0;
+}
+
+function finishPoseTween() {
+    if (!poseTween) return;
+    const to = poseTween.to;
+    poseTween = null;
+    Object.keys(to).forEach(name => writeJoint(name, to[name]));
+}
+
+function setRobotStatus(state, title, detail) {
+    if (!robotStatusEl) return;
+    robotStatusEl.hidden = false;
+    robotStatusEl.dataset.state = state;
+    if (robotStatusTitleEl) robotStatusTitleEl.textContent = title;
+    if (robotStatusDetailEl) robotStatusDetailEl.textContent = detail;
+    if (startDemoBtn) startDemoBtn.hidden = state !== 'error';
+    if (loadG1Btn) {
+        loadG1Btn.disabled = state === 'loading';
+        if (state === 'loading') loadG1Btn.textContent = currentRobot ? 'Reloading…' : 'Loading G1…';
+        else if (state === 'ready' || currentRobot) loadG1Btn.textContent = '↻ Reload G1';
+        else loadG1Btn.textContent = '🤖 Load G1';
+    }
+    if (state === 'loading' && !currentRobot) {
+        if (jointsBlock) jointsBlock.hidden = true;
+        const preset = document.getElementById('preset-section');
+        if (preset) preset.style.display = 'none';
+        const pose = document.getElementById('pose-manager');
+        if (pose) pose.style.display = 'none';
+        const action = document.getElementById('action-builder');
+        if (action) action.style.display = 'none';
+        const ik = document.getElementById('ik-container');
+        if (ik) ik.style.display = 'none';
+    }
+    if (state === 'ready' && jointsBlock) jointsBlock.hidden = false;
+}
 
 const manager = new THREE.LoadingManager();
 const loader = new URDFLoader(manager);
@@ -208,19 +306,57 @@ loader.packages = {
     'g1_description': './g1_model'
 };
 
-// Handle Built-in Unitree G1 Model
-document.getElementById('load-g1-btn').addEventListener('click', () => {
-    statusEl.innerText = "Loading Unitree G1...";
-    loader.load('./g1_model/g1_29dof.urdf',
-        robot => {
-            setupRobotInScene(robot, "Unitree G1 (29-DOF)");
-        },
-        undefined,
-        err => {
-            statusEl.innerText = "Error loading G1 Model.";
-            console.error(err);
-        }
+function loadG1(source) {
+    if (g1Loading) return Promise.resolve(false);
+    g1Loading = true;
+    const token = ++g1LoadToken;
+    const reloading = !!currentRobot;
+    setRobotStatus(
+        'loading',
+        reloading ? 'Reloading Unitree G1' : 'Loading Unitree G1',
+        'The 29-DOF model opens on its own.'
     );
+
+    return new Promise((resolve) => {
+        loader.load(G1_URDF_URL,
+            robot => {
+                if (token !== g1LoadToken) return;
+                g1Loading = false;
+                try {
+                    setupRobotInScene(robot, 'Unitree G1 (29-DOF)');
+                    setRobotStatus('ready', 'Unitree G1', 'Loaded. Try a pose, then copy Python.');
+                    track('load_g1');
+                    if (source === 'autoload') track('g1_autoload', { result: 'success' });
+                    startOnboarding();
+                    resolve(true);
+                } catch (err) {
+                    console.error(err);
+                    setRobotStatus('error', 'Could not show the G1', 'Start the demo to try loading again.');
+                    if (source === 'autoload') track('g1_autoload', { result: 'error' });
+                    resolve(false);
+                }
+            },
+            undefined,
+            err => {
+                if (token !== g1LoadToken) return;
+                g1Loading = false;
+                console.error(err);
+                setRobotStatus('error', 'G1 did not load', 'Start the demo to try again. It loads the same model and plays Wave.');
+                if (source === 'autoload') track('g1_autoload', { result: 'error' });
+                resolve(false);
+            }
+        );
+    });
+}
+
+loadG1Btn?.addEventListener('click', () => {
+    loadG1(currentRobot ? 'reload' : 'manual');
+});
+
+startDemoBtn?.addEventListener('click', () => {
+    loadG1('start_demo').then(ok => {
+        if (ok) applyPreset('wave', 'start_demo');
+    });
 });
 
 // --- MINIMIZE LOGIC ---
@@ -246,8 +382,10 @@ function loadRobotContent(urdfContent, filename) {
     try {
         const robot = loader.parse(urdfContent);
         setupRobotInScene(robot, filename);
+        setRobotStatus('ready', filename, 'Loaded. Try a pose, then copy Python.');
+        startOnboarding();
     } catch (e) {
-        statusEl.innerText = "Failed to parse URDF.";
+        setRobotStatus('error', 'Could not read that URDF', 'Start the demo to load the Unitree G1.');
         console.error(e);
     }
 }
@@ -278,7 +416,6 @@ function setupRobotInScene(robot, filename) {
     const center = box.getCenter(new THREE.Vector3());
     controls.target.copy(center);
 
-    statusEl.innerText = filename + " loaded successfully";
     createJointSliders(robot);
 }
 
@@ -369,12 +506,16 @@ function createJointSliders(robot) {
             slider.value = initialVal;
 
             slider.addEventListener('input', (e) => {
+                poseTween = null;
+                clearPresetSelection();
                 const val = parseFloat(e.target.value);
                 robot.setJointValue(joint.name, val);
                 valInput.value = val.toFixed(2);
             });
 
             valInput.addEventListener('change', (e) => {
+                poseTween = null;
+                clearPresetSelection();
                 let val = parseFloat(e.target.value);
                 if (isNaN(val)) val = 0;
                 if (val < min) val = min;
@@ -400,6 +541,8 @@ function createJointSliders(robot) {
         document.getElementById('pose-manager').style.display = 'block';
         document.getElementById('action-builder').style.display = 'block';
         document.getElementById('ik-container').style.display = 'block';
+        const presetSection = document.getElementById('preset-section');
+        if (presetSection) presetSection.style.display = 'block';
 
         const ikSelect = document.getElementById('ik-end-effector');
         ikSelect.innerHTML = '<option value="">Select End Effector...</option>';
@@ -461,14 +604,253 @@ document.getElementById('ik-toggle-btn').addEventListener('click', (e) => {
     }
 });
 
-// Auto-load Unitree G1
-window.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('load-g1-btn').click();
+// --- 3. POSE LIBRARY ---
+// Radians, clamped to URDF limits when applied. Unlisted joints return to 0.
+// Leg signs follow the Unitree walk-ready stance (slight negative hip pitch, positive knee).
+const STAND = {
+    left_hip_pitch_joint: -0.1,
+    left_knee_joint: 0.3,
+    left_ankle_pitch_joint: -0.2,
+    right_hip_pitch_joint: -0.1,
+    right_knee_joint: 0.3,
+    right_ankle_pitch_joint: -0.2,
+};
+
+const PRESETS = {
+    tpose: {
+        left_shoulder_roll_joint: 1.5,
+        right_shoulder_roll_joint: -1.5,
+    },
+    wave: {
+        ...STAND,
+        right_shoulder_pitch_joint: 0.35,
+        right_shoulder_roll_joint: -1.25,
+        right_elbow_joint: 1.35,
+        right_wrist_roll_joint: 0.5,
+    },
+    walkready: {
+        ...STAND,
+        left_shoulder_pitch_joint: 0.25,
+        left_shoulder_roll_joint: 0.2,
+        left_elbow_joint: 0.85,
+        right_shoulder_pitch_joint: 0.25,
+        right_shoulder_roll_joint: -0.2,
+        right_elbow_joint: 0.85,
+    },
+    sit: {
+        left_hip_pitch_joint: -1.05,
+        left_knee_joint: 2.05,
+        left_ankle_pitch_joint: -0.55,
+        right_hip_pitch_joint: -1.05,
+        right_knee_joint: 2.05,
+        right_ankle_pitch_joint: -0.55,
+        left_shoulder_pitch_joint: 0.35,
+        left_elbow_joint: 0.7,
+        right_shoulder_pitch_joint: 0.35,
+        right_elbow_joint: 0.7,
+    },
+    handshake: {
+        ...STAND,
+        waist_yaw_joint: -0.25,
+        right_shoulder_pitch_joint: 0.85,
+        right_shoulder_roll_joint: -0.15,
+        right_elbow_joint: 0.95,
+    },
+    squat: {
+        left_hip_pitch_joint: -0.75,
+        left_knee_joint: 1.55,
+        left_ankle_pitch_joint: -0.7,
+        right_hip_pitch_joint: -0.75,
+        right_knee_joint: 1.55,
+        right_ankle_pitch_joint: -0.7,
+        left_shoulder_pitch_joint: 0.45,
+        left_elbow_joint: 0.55,
+        right_shoulder_pitch_joint: 0.45,
+        right_elbow_joint: 0.55,
+    },
+};
+
+function prefersReducedMotion() {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
+function clearPresetSelection() {
+    document.querySelectorAll('.preset-btn.active').forEach(btn => btn.classList.remove('active'));
+}
+
+function applyJointMap(map, animate) {
+    if (!currentRobot) return;
+    finishPoseTween();
+    const from = {};
+    const to = {};
+    Object.values(currentRobot.joints).forEach(joint => {
+        if (!isMovableJoint(joint)) return;
+        const raw = Object.prototype.hasOwnProperty.call(map, joint.name) ? map[joint.name] : 0;
+        from[joint.name] = readJoint(joint.name);
+        to[joint.name] = clampJoint(joint, raw);
+    });
+    const duration = animate && !prefersReducedMotion() ? 700 : 0;
+    if (duration === 0) {
+        Object.keys(to).forEach(name => writeJoint(name, to[name]));
+        return;
+    }
+    poseTween = { from, to, start: performance.now(), duration };
+}
+
+function applyPreset(name, source) {
+    const pose = PRESETS[name];
+    if (!pose || !currentRobot) return false;
+    applyJointMap(pose, true);
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.preset === name);
+    });
+    track('demo_preset', { preset: name, source: source || 'library' });
+    onboardingNotePreset();
+    return true;
+}
+
+document.getElementById('preset-grid')?.addEventListener('click', (event) => {
+    const button = event.target.closest('.preset-btn');
+    if (!button) return;
+    const preset = button.dataset.preset || 'unknown';
+    track('preset_click', { preset });
+    applyPreset(preset, 'library');
 });
 
-// --- 3. POSE MANAGER ---
+document.getElementById('webcam-toggle-btn')?.addEventListener('click', () => {
+    const label = (document.getElementById('webcam-toggle-btn')?.textContent || '').toLowerCase();
+    if (label.includes('start')) track('webcam_start');
+});
+
+// --- 3b. FIRST-RUN TIPS ---
+const ONBOARDING_KEY = 'rs_onboarding_dismissed';
+const ONBOARDING_STEPS = [
+    {
+        key: 'loaded',
+        title: 'Robot loaded',
+        body: 'The Unitree G1 is on the stage. Drag to look around, then try a pose.',
+        primary: 'Next',
+    },
+    {
+        key: 'pose',
+        title: 'Try a pose',
+        body: 'Wave is a one-tap demo. Any button in the pose library works the same way.',
+        primary: 'Try Wave',
+        highlight: '#preset-section',
+    },
+    {
+        key: 'export',
+        title: 'Copy Python',
+        body: 'Copy Python puts the current joint angles on your clipboard.',
+        primary: 'Copy Python',
+        highlight: '#export-pose-btn',
+    },
+];
+let onboardingActive = false;
+let onboardingStep = 0;
+let onboardingStarted = false;
+
+function onboardingDismissed() {
+    try {
+        return localStorage.getItem(ONBOARDING_KEY) === '1';
+    } catch (_) {
+        return false;
+    }
+}
+
+function rememberOnboardingDismissed() {
+    try {
+        localStorage.setItem(ONBOARDING_KEY, '1');
+    } catch (_) { /* private mode */ }
+}
+
+function clearOnboardingHighlight() {
+    document.querySelectorAll('.onboarding-highlight').forEach(el => el.classList.remove('onboarding-highlight'));
+}
+
+function renderOnboarding() {
+    const root = document.getElementById('onboarding');
+    const step = ONBOARDING_STEPS[onboardingStep];
+    if (!root || !step) return;
+    const kicker = document.getElementById('onboarding-kicker');
+    const title = document.getElementById('onboarding-title');
+    const body = document.getElementById('onboarding-body');
+    const next = document.getElementById('onboarding-next');
+    if (kicker) kicker.textContent = `Step ${onboardingStep + 1} of ${ONBOARDING_STEPS.length}`;
+    if (title) title.textContent = step.title;
+    if (body) body.textContent = step.body;
+    if (next) next.textContent = step.primary;
+    clearOnboardingHighlight();
+    if (step.highlight) {
+        const target = document.querySelector(step.highlight);
+        if (target) {
+            target.classList.add('onboarding-highlight');
+            target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        }
+    }
+    root.hidden = false;
+}
+
+function startOnboarding() {
+    if (onboardingStarted || onboardingDismissed()) return;
+    onboardingStarted = true;
+    onboardingActive = true;
+    onboardingStep = 0;
+    track('onboarding_start');
+    renderOnboarding();
+}
+
+function dismissOnboarding(via) {
+    if (!onboardingActive) return;
+    const step = ONBOARDING_STEPS[onboardingStep];
+    track('onboarding_dismiss', { step: step ? step.key : 'unknown', via });
+    rememberOnboardingDismissed();
+    onboardingActive = false;
+    const root = document.getElementById('onboarding');
+    if (root) root.hidden = true;
+    clearOnboardingHighlight();
+}
+
+function onboardingNotePreset() {
+    if (!onboardingActive) return;
+    if (onboardingStep < ONBOARDING_STEPS.length - 1) {
+        onboardingStep = ONBOARDING_STEPS.length - 1;
+        renderOnboarding();
+    }
+}
+
+function onboardingPrimary() {
+    if (!onboardingActive) return;
+    const step = ONBOARDING_STEPS[onboardingStep];
+    if (!step) return;
+    if (step.key === 'pose') {
+        applyPreset('wave', 'onboarding');
+        return;
+    }
+    if (step.key === 'export') {
+        exportCurrentPose();
+        return;
+    }
+    if (onboardingStep >= ONBOARDING_STEPS.length - 1) {
+        dismissOnboarding('done');
+        return;
+    }
+    onboardingStep += 1;
+    renderOnboarding();
+}
+
+document.getElementById('onboarding-next')?.addEventListener('click', onboardingPrimary);
+document.getElementById('onboarding-skip')?.addEventListener('click', () => dismissOnboarding('skip'));
+document.getElementById('onboarding-close')?.addEventListener('click', () => dismissOnboarding('close'));
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && onboardingActive) dismissOnboarding('close');
+});
+
+// --- 4. POSE MANAGER ---
 document.getElementById('reset-pose-btn').addEventListener('click', () => {
     if (!currentRobot) return;
+    poseTween = null;
+    clearPresetSelection();
     const joints = Object.values(currentRobot.joints).filter(j => j.jointType !== 'fixed');
     
     joints.forEach((joint) => {
@@ -492,10 +874,11 @@ document.getElementById('reset-pose-btn').addEventListener('click', () => {
 
 const getCurrentPoseData = () => {
     const poseData = {};
-    const inputs = document.querySelectorAll('.val-input');
-    inputs.forEach((input, index) => {
-        const jointName = document.querySelectorAll('.slider-labels span:first-child')[index].innerText;
-        poseData[jointName] = parseFloat(input.value);
+    document.querySelectorAll('.val-input').forEach((input) => {
+        if (!input.id.startsWith('val-')) return;
+        const jointName = input.id.slice(4);
+        const value = parseFloat(input.value);
+        poseData[jointName] = Number.isNaN(value) ? 0 : value;
     });
     return poseData;
 };
@@ -504,7 +887,8 @@ const getCurrentPoseArrayString = () => {
     const poseData = getCurrentPoseData();
     const getVals = (names) => {
         return names.map(n => {
-            let v = poseData[n] || 0.0;
+            let v = poseData[n];
+            if (v === undefined || Number.isNaN(v)) v = 0.0;
             let str = v.toString();
             if (!str.includes('.')) str += ".0";
             return str;
@@ -530,17 +914,50 @@ const getCurrentPoseArrayString = () => {
     ]`;
 };
 
-document.getElementById('export-pose-btn').addEventListener('click', () => {
-    if (!currentRobot) return;
-    const arrayStr = getCurrentPoseArrayString();
-    const pyCode = `pose = ${arrayStr}`;
+function copyText(text) {
+    const fallback = () => {
+        const area = document.createElement('textarea');
+        area.value = text;
+        area.setAttribute('readonly', '');
+        area.style.position = 'fixed';
+        area.style.top = '0';
+        area.style.left = '0';
+        area.style.opacity = '0';
+        document.body.appendChild(area);
+        area.focus();
+        area.select();
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
+        area.remove();
+        return ok ? Promise.resolve() : Promise.reject(new Error('copy failed'));
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+        return navigator.clipboard.writeText(text).catch(fallback);
+    }
+    return fallback();
+}
 
-    navigator.clipboard.writeText(pyCode).then(() => {
-        const status = document.getElementById('export-status');
+function exportCurrentPose() {
+    if (!currentRobot) return;
+    finishPoseTween();
+    track('export_pose');
+    const pyCode = `pose = ${getCurrentPoseArrayString()}`;
+    const status = document.getElementById('export-status');
+    const flash = (message) => {
+        if (!status) return;
+        status.textContent = message;
         status.style.opacity = '1';
-        setTimeout(() => status.style.opacity = '0', 2000);
+        setTimeout(() => { status.style.opacity = '0'; }, 2000);
+    };
+    copyText(pyCode).then(() => {
+        flash('Copied to clipboard!');
+        if (onboardingActive) dismissOnboarding('export');
+    }).catch(() => {
+        flash('Could not copy. Allow clipboard access and try again.');
     });
-});
+}
+
+document.getElementById('export-pose-btn').addEventListener('click', exportCurrentPose);
 
 // --- 4. ACTION BUILDER ---
 let actionFrames = [];
@@ -630,6 +1047,7 @@ document.getElementById('export-action-btn').addEventListener('click', () => {
 
 document.getElementById('play-action-btn').addEventListener('click', () => {
     if (actionFrames.length === 0 || isPlaying || !currentRobot) return;
+    poseTween = null;
     
     if (actionFrames.length === 1) {
         const frame = actionFrames[0];
@@ -752,3 +1170,6 @@ function parsePythonAction(code) {
     
     return frames;
 }
+
+// Same URDF as the Load G1 button. Runs once the module is evaluated (script is deferred).
+loadG1('autoload');
