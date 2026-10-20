@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import URDFLoader from 'urdf-loader'; // provided via import map
+import { track } from './analytics.js';
+
+track('page_view');
 
 // --- 1. SETUP SCENE ---
 const container = document.getElementById('3d-canvas-container');
@@ -213,6 +216,7 @@ document.getElementById('load-g1-btn').addEventListener('click', () => {
     statusEl.innerText = "Loading Unitree G1...";
     loader.load('./g1_model/g1_29dof.urdf',
         robot => {
+            track('load_g1');
             setupRobotInScene(robot, "Unitree G1 (29-DOF)");
         },
         undefined,
@@ -461,6 +465,19 @@ document.getElementById('ik-toggle-btn').addEventListener('click', (e) => {
     }
 });
 
+document.getElementById('preset-grid')?.addEventListener('click', (event) => {
+    const button = event.target.closest('.preset-btn');
+    if (!button) return;
+    track('preset_click', { preset: button.dataset.preset || 'unknown' });
+});
+
+document.getElementById('webcam-toggle-btn')?.addEventListener('click', () => {
+    const label = (document.getElementById('webcam-toggle-btn')?.textContent || '').toLowerCase();
+    if (label.includes('start')) {
+        track('webcam_start');
+    }
+});
+
 // Auto-load Unitree G1
 window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('load-g1-btn').click();
@@ -532,6 +549,7 @@ const getCurrentPoseArrayString = () => {
 
 document.getElementById('export-pose-btn').addEventListener('click', () => {
     if (!currentRobot) return;
+    track('export_pose');
     const arrayStr = getCurrentPoseArrayString();
     const pyCode = `pose = ${arrayStr}`;
 
