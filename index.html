@@ -32,14 +32,14 @@
         </header>
 
         <div id="ui-panel-content">
-            <!-- Load Button -->
-            <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
-                <button id="load-g1-btn" class="secondary-btn" style="flex: 1; padding: 0.5rem; font-size: 0.8rem; background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.5); color: #fff;">
-                    🤖 Load G1
-                </button>
-            </div>
+            <button id="load-g1-btn" type="button" class="secondary-btn load-g1-btn">🤖 Load G1</button>
 
-            <div id="upload-status" style="display:none;">Initializing...</div>
+            <div id="robot-status" class="robot-status" data-state="loading" role="status" aria-live="polite">
+                <div class="robot-status-spinner" aria-hidden="true"></div>
+                <p id="robot-status-title">Loading Unitree G1</p>
+                <p id="robot-status-detail">The 29-DOF model opens on its own.</p>
+                <button id="start-demo-btn" type="button" class="start-demo-btn" hidden>Start demo</button>
+            </div>
 
         <!-- Webcam Pose Panel -->
         <div id="webcam-section" style="display: none; margin-bottom: 1rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; overflow: hidden;">
@@ -79,9 +79,11 @@
             <button id="ik-toggle-btn" class="secondary-btn" style="width: 100%; padding: 0.5rem; font-size: 0.8rem; background: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.4); color: #818cf8;">Enable IK Target</button>
         </div>
 
-        <div class="joints-header">Joint Controls</div>
-        <div id="joints-container">
-            <!-- Joint sliders will be injected here -->
+        <div id="joints-block" hidden>
+            <div class="joints-header">Joint Controls</div>
+            <div id="joints-container">
+                <!-- Joint sliders will be injected here -->
+            </div>
         </div>
 
         <div id="pose-manager" style="display: none; margin-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 1rem;">
@@ -136,6 +138,19 @@
 
     <div id="3d-canvas-container"></div>
 
+    <div id="onboarding" class="onboarding" hidden>
+        <div class="onboarding-card" role="dialog" aria-labelledby="onboarding-title" aria-describedby="onboarding-body">
+            <button type="button" id="onboarding-close" class="onboarding-close" aria-label="Dismiss tips">×</button>
+            <p id="onboarding-kicker" class="onboarding-kicker">Step 1 of 3</p>
+            <h2 id="onboarding-title">Robot loaded</h2>
+            <p id="onboarding-body">The Unitree G1 is on the stage. Drag to look around, then try a pose.</p>
+            <div class="onboarding-actions">
+                <button type="button" id="onboarding-next" class="upload-btn">Next</button>
+                <button type="button" id="onboarding-skip" class="secondary-btn">Skip</button>
+            </div>
+        </div>
+    </div>
+
     <script type="importmap">
         {
             "imports": {
@@ -146,6 +161,6 @@
             }
         }
     </script>
-    <script type="module" src="app.js?v=FIXED"></script>
+    <script type="module" src="app.js?v=phase1"></script>
 </body>
 </html>
