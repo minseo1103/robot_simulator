@@ -1,0 +1,40 @@
+name: Deploy preview to Firebase Hosting
+
+on:
+  pull_request:
+
+permissions:
+  checks: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  check_secret:
+    runs-on: ubuntu-latest
+    outputs:
+      present: ${{ steps.gate.outputs.present }}
+    steps:
+      - name: Check Firebase service account secret
+        id: gate
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ROBOTSIMULATOR_1CE32 }}
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Preview deploy skipped::Repository secret FIREBASE_SERVICE_ACCOUNT_ROBOTSIMULATOR_1CE32 is not set, so this pull request was not deployed to a Firebase Hosting preview channel."
+          fi
+
+  deploy_preview:
+    needs: check_secret
+    if: needs.check_secret.outputs.present == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ROBOTSIMULATOR_1CE32 }}
+          projectId: robotsimulator-1ce32
+          expires: 7d
