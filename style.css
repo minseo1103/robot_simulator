@@ -465,6 +465,32 @@ input[type=range]:focus {
     border-radius: 10px;
 }
 
+.share-pose-btn {
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+    flex: none;
+}
+
+.share-hint {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 0.45rem;
+    line-height: 1.35;
+    text-align: center;
+}
+
+#share-status {
+    font-size: 0.75rem;
+    color: #10b981;
+    margin-top: 0.35rem;
+    text-align: center;
+    line-height: 1.35;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
 @keyframes rs-spin {
     to { transform: rotate(360deg); }
 }

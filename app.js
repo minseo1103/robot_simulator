@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import URDFLoader from 'urdf-loader'; // provided via import map
 import { track } from './analytics.js';
+import { buildShareUrl, decodeShare, readShareToken } from './share.js';
 
 track('page_view');
 
@@ -223,6 +224,7 @@ const jointsBlock = document.getElementById('joints-block');
 const G1_URDF_URL = './g1_model/g1_29dof.urdf';
 let g1Loading = false;
 let g1LoadToken = 0;
+let shareApplied = false;
 
 function jointLimits(joint) {
     const min = joint.limit && joint.limit.lower !== undefined ? parseFloat(joint.limit.lower) : -Math.PI;
@@ -327,6 +329,11 @@ function loadG1(source) {
                     setRobotStatus('ready', 'Unitree G1', 'Loaded. Try a pose, then copy Python.');
                     track('load_g1');
                     if (source === 'autoload') track('g1_autoload', { result: 'success' });
+                    try {
+                        applyPendingShareOnce();
+                    } catch (shareErr) {
+                        console.error(shareErr);
+                    }
                     startOnboarding();
                     resolve(true);
                 } catch (err) {
@@ -355,7 +362,7 @@ loadG1Btn?.addEventListener('click', () => {
 
 startDemoBtn?.addEventListener('click', () => {
     loadG1('start_demo').then(ok => {
-        if (ok) applyPreset('wave', 'start_demo');
+        if (ok && !shareApplied) applyPreset('wave', 'start_demo');
     });
 });
 
@@ -883,8 +890,8 @@ const getCurrentPoseData = () => {
     return poseData;
 };
 
-const getCurrentPoseArrayString = () => {
-    const poseData = getCurrentPoseData();
+const getCurrentPoseArrayString = (poseData) => {
+    if (!poseData) poseData = getCurrentPoseData();
     const getVals = (names) => {
         return names.map(n => {
             let v = poseData[n];
@@ -1170,6 +1177,100 @@ function parsePythonAction(code) {
     
     return frames;
 }
+
+// --- 6. SHAREABLE POSE URLS ---
+const pendingShareToken = readShareToken(window.location.href);
+const pendingShare = pendingShareToken ? decodeShare(pendingShareToken) : null;
+let shareConsumed = false;
+let shareStatusTimer = 0;
+
+function flashShareStatus(message, tone) {
+    const status = document.getElementById('share-status');
+    if (!status) return;
+    status.textContent = message;
+    status.style.color = tone === 'error' ? '#fca5a5' : tone === 'warn' ? '#fbbf24' : '#10b981';
+    status.style.opacity = '1';
+    clearTimeout(shareStatusTimer);
+    shareStatusTimer = setTimeout(() => { status.style.opacity = '0'; }, 3200);
+}
+
+function expandPoseMap(sparse) {
+    const full = {};
+    if (!currentRobot) return full;
+    Object.values(currentRobot.joints).forEach(joint => {
+        if (!isMovableJoint(joint)) return;
+        const has = sparse && Object.prototype.hasOwnProperty.call(sparse, joint.name);
+        const raw = has ? Number(sparse[joint.name]) : 0;
+        full[joint.name] = clampJoint(joint, raw);
+    });
+    return full;
+}
+
+function applyPendingShareOnce() {
+    if (shareConsumed) return;
+    shareConsumed = true;
+    if (!pendingShareToken) return;
+    if (!pendingShare) {
+        flashShareStatus('Could not read this share link.', 'error');
+        track('share_load', { result: 'invalid' });
+        return;
+    }
+    const pose = expandPoseMap(pendingShare.pose);
+    applyJointMap(pose, false);
+    clearPresetSelection();
+    const frames = Array.isArray(pendingShare.frames) ? pendingShare.frames : [];
+    if (frames.length) {
+        actionFrames = frames.map(frame => {
+            const raw = expandPoseMap(frame.raw);
+            return {
+                raw,
+                duration: frame.duration,
+                py: getCurrentPoseArrayString(raw),
+            };
+        });
+        updateActionUI();
+    }
+    document.title = 'Shared pose · Robot Kinematics';
+    shareApplied = true;
+    const count = frames.length;
+    flashShareStatus(
+        count ? `Shared pose restored (${count} frame${count === 1 ? '' : 's'}).` : 'Shared pose restored.',
+        'ok'
+    );
+    track('share_load', {
+        result: 'success',
+        frames: count,
+        included: count ? 'pose+action' : 'pose',
+    });
+}
+
+document.getElementById('share-pose-btn')?.addEventListener('click', () => {
+    if (!currentRobot) return;
+    finishPoseTween();
+    const built = buildShareUrl(
+        window.location.href,
+        getCurrentPoseData(),
+        actionFrames.map(frame => ({ raw: frame.raw, duration: frame.duration }))
+    );
+    copyText(built.url).then(() => {
+        try { history.replaceState(null, '', built.url); } catch (_) { /* keep the copied URL anyway */ }
+        if (built.droppedActions) {
+            flashShareStatus('Copied pose link. Action left out (over ~2,000 characters).', 'warn');
+        } else if (built.frames > 0) {
+            flashShareStatus(`Copied share link (pose + ${built.frames} frame${built.frames === 1 ? '' : 's'}).`, 'ok');
+        } else {
+            flashShareStatus('Copied share link.', 'ok');
+        }
+        track('share_copy', {
+            frames: built.frames,
+            included: built.frames ? 'pose+action' : 'pose',
+            dropped_actions: built.droppedActions,
+            length: built.url.length,
+        });
+    }).catch(() => {
+        flashShareStatus('Could not copy. Allow clipboard access and try again.', 'error');
+    });
+});
 
 // Same URDF as the Load G1 button. Runs once the module is evaluated (script is deferred).
 loadG1('autoload');

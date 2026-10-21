@@ -92,7 +92,10 @@
                 <button id="reset-pose-btn" class="secondary-btn" style="flex: 1; padding: 0.5rem; font-size: 0.8rem; background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #fca5a5;">↻ Reset</button>
                 <button id="export-pose-btn" class="upload-btn" style="flex: 1; padding: 0.5rem; font-size: 0.8rem; background-color: var(--primary);">📋 Copy Python</button>
             </div>
+            <button id="share-pose-btn" type="button" class="secondary-btn share-pose-btn">Copy share link</button>
+            <p class="share-hint">Action frames are included while the link stays under about 2,000 characters.</p>
             <div id="export-status" style="font-size: 0.75rem; color: #10b981; margin-top: 0.5rem; text-align: center; opacity: 0; transition: opacity 0.3s ease;">Copied to clipboard!</div>
+            <div id="share-status" role="status" aria-live="polite"></div>
         </div>
 
         <div id="action-builder" style="display: none; margin-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 1rem;">
@@ -161,6 +164,6 @@
             }
         }
     </script>
-    <script type="module" src="app.js?v=phase1"></script>
+    <script type="module" src="app.js?v=phase2"></script>
 </body>
 </html>
