@@ -3,15 +3,16 @@
     "public": ".",
     "ignore": [
       "firebase.json",
+      ".firebaserc",
       "**/.*",
+      "**/.git/**",
+      "**/.github/**",
+      "**/.firebase/**",
       "**/node_modules/**",
-      "unitree_ros_repo/**"
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
+      "unitree_ros_repo/**",
+      "README.md",
+      "ROADMAP.md",
+      "docs/**"
     ]
   }
 }
