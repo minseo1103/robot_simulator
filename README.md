@@ -53,7 +53,7 @@ Events currently emitted: `page_view`, `load_g1`, `g1_autoload`, `preset_click`,
 
 `main`에 push하면 GitHub Actions가 이 정적 사이트를 Firebase Hosting 프로젝트 `robotsimulator-1ce32`의 live 채널에 배포합니다. 주소는 https://robotsimulator-1ce32.web.app/ 입니다. 빌드 단계는 없고, 사이트 파일은 저장소 루트에서 그대로 올라갑니다.
 
-서비스 계정 키는 저장소 secret `FIREBASE_SERVICE_ACCOUNT_ROBOTSIMULATOR_1CE32`에 넣습니다.
+서비스 계정 키는 저장소 secret `FIREBASE_SERVICE_ACCOUNT_ROBOTSIMULATOR_1CE32`에 넣습니다. 라이브 배포 워크플로는 이 이름을 그대로 읽습니다.
 
 1. [Firebase 콘솔](https://console.firebase.google.com/)에서 프로젝트 **robotsimulator-1ce32**를 엽니다.
 2. **Project settings** > **Service accounts**로 이동합니다.
